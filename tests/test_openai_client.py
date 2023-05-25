@@ -24,3 +24,6 @@ def test_get_completion(mock_create, chat_instance):
         stop=None,
         temperature=0
     )
+
+def test_slack_client():
+    pass
