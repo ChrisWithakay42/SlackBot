@@ -6,6 +6,9 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 from config import OpenAiConfig
 from config import SlackConfig
+from draft.chat_bot import Message
+from draft.chat_bot import OpenAiChat
+from draft.chat_bot import SlackBot
 from draft.chat_bot import SlackClient
 
 logger = logging.getLogger(__name__)
@@ -24,15 +27,31 @@ def generate_completion(prompt):
     return completion
 
 
-slack_client = SlackClient(SlackConfig.SLACK_BOT_TOKEN, config={'MAX_TOKENS': 4096, 'MAX_RESPONSE_TOKENS': 1000})
+message = Message(**OpenAiConfig.MESSAGE_DATA)
+openai_chat = OpenAiChat(
+    message=message,
+    model=OpenAiConfig.CHAT_MODEL,
+    max_tokens=OpenAiConfig.MAX_TOKENS,
+    max_response_tokens=OpenAiConfig.MAX_RESPONSE_TOKENS,
+    api_key=OpenAiConfig.OPENAI_API_KEY
+)
+slack_client = SlackClient(
+    bot_token=SlackConfig.SLACK_BOT_TOKEN,
+    config={'MAX_TOKENS': OpenAiConfig.MAX_TOKENS, 'MAX_RESPONSE_TOKENS': OpenAiConfig.MAX_RESPONSE_TOKENS}
+)
+slack_bot = SlackBot(slack_client=slack_client, openai_chat=openai_chat)
 
 
 @app.event('message')
-def handle_direct_messages(event, say):
+def handle_direct_messages(event):
     if hasattr(event, 'bot_id'):
         return  # bot should not be triggered on its own messages
-    completion = generate_completion(prompt=event['text'])
-    say(text=completion)
+    slack_bot.handle_event(event=event)
+
+
+@app.event('app_mention')
+def handle_mention(event):
+    slack_bot.handle_event(event=event, thread=True)
 
 
 if __name__ == '__main__':

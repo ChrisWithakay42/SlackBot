@@ -6,6 +6,8 @@ import openai
 from openai import OpenAIError
 from slack_sdk import WebClient
 
+from logger import log_to_file
+
 
 def _clean_prompt(prompt):
     # Here we are matching and removing the @User string from the prompt
@@ -53,7 +55,6 @@ class OpenAiChat:
         )
 
         completion = response.choices[0].message['content'].strip()
-        logger.debug(f'Completion results {completion}')
         return completion
 
 
@@ -68,16 +69,16 @@ class SlackClient:
         else:
             return self._get_conversation_history(channel_id, user_id, limit)
 
+    @log_to_file
     def _get_thread_history(self, channel_id, user_id, event_ts, limit):
         result = self.client.conversations_replies(
             channel=channel_id, ts=event_ts, limit=limit, latest=str(datetime.now())
         )
-        logger.debug(f'Thread history result {result}')
         return self._extract_messages(result['messages'], user_id)
 
+    @log_to_file
     def _get_conversation_history(self, channel_id, user_id, limit):
         result = self.client.conversations_history(channel=channel_id, limit=limit)
-        logger.debug(f'Conversation history result {result}')
 
         return self._extract_messages(result['messages'], user_id)
 
@@ -139,8 +140,3 @@ class SlackBot:
             channel=channel_id, ts=typing_message['ts'], text=completion_message
         )
 
-    def handle_direct_message(self,):
-        ...
-
-    def handle_thread_message(self):
-        ...
